@@ -22,7 +22,7 @@ if %errorlevel% == 0 (
 )
 
 REM Create the task with absolute app.py path
-schtasks /create /f /sc onstart /tn "%TASK_NAME%" /tr "\"%PYTHON_PATH%\" \"%SCRIPT_PATH%\"" /rl HIGHEST
+schtasks /create /f /sc onstart /tn "%TASK_NAME%" /tr "\"%PYTHON_PATH%\" -m uvicorn app:app --host 127.0.0.1 --port 8000" /rl HIGHEST
 
 echo ✅ Task Scheduler job '%TASK_NAME%' created to run on system startup!
 pause
