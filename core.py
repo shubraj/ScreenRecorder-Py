@@ -35,7 +35,7 @@ def setup_logger(name="screen_recorder", log_file="screen_recorder.log"):
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     
     # Rotating file handler (5 MB per file, up to 5 backup files)
-    file_handler = RotatingFileHandler(LOG_DIR / log_file, maxBytes=5*1024*1024, backupCount=5)
+    file_handler = RotatingFileHandler(LOG_DIR / log_file, maxBytes=5*1024*1024, backupCount=5,encoding='utf-8')
     file_handler.setFormatter(formatter)
     file_handler.setLevel(logging.DEBUG)
 

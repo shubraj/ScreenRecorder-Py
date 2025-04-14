@@ -31,7 +31,7 @@ def record_loop():
     try:
         while not stop_event.is_set():
             if is_within_recording_hours():
-                logger.info("✅ Within allowed time. Starting a recording segment.")
+                logger.info("SUCCESS: Within allowed time. Starting a recording segment.")
                 screen_recorder_segment(RECORDING_DIR, stop_event=stop_event)
             else:
                 logger.info("⏳ Outside recording hours. Will check again in 60 seconds.")
@@ -41,10 +41,10 @@ def record_loop():
                 logger.info("🕘 Recording hours ended. Will stop until next allowed time.")
                 break
             if stop_event.is_set():
-                logger.info("🛑 Stop signal received. Exiting recording loop.")
+                logger.info("STOP: Stop signal received. Exiting recording loop.")
                 break
     except Exception as e:
-        logger.exception("❌ An error occurred during the recording loop.")
+        logger.exception("Error: An error occurred during the recording loop.")
     finally:
         is_recording = False
         upload_and_clean_recordings()
