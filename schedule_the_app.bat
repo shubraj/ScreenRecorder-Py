@@ -1,7 +1,7 @@
 @echo off
 REM Setup script to run FastAPI app at system startup
 
-REM Get script directory and app path
+REM Get full script directory and app path
 set "SCRIPT_DIR=%~dp0"
 set "SCRIPT_PATH=%SCRIPT_DIR%app.py"
 set "TASK_NAME=FastAPIRecorderOnStartup"
@@ -21,9 +21,8 @@ if %errorlevel% == 0 (
     )
 )
 
-REM Escape quotes correctly and create the task
-set "CMD_LINE=cmd /c \"cd /d \"%SCRIPT_DIR%\" && %PYTHON_PATH% app.py\""
-schtasks /create /f /sc onstart /tn "%TASK_NAME%" /tr "%CMD_LINE%" /rl HIGHEST
+REM Create the task with absolute app.py path
+schtasks /create /f /sc onstart /tn "%TASK_NAME%" /tr "\"%PYTHON_PATH%\" \"%SCRIPT_PATH%\"" /rl HIGHEST
 
 echo ✅ Task Scheduler job '%TASK_NAME%' created to run on system startup!
 pause
