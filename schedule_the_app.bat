@@ -1,42 +1,34 @@
 @echo off
 REM Setup script to run FastAPI app at system startup
+
 REM Get full script directory and app path
 set "SCRIPT_DIR=%~dp0"
-set "APP_PATH=%SCRIPT_DIR%app.py"
+set "SCRIPT_PATH=%SCRIPT_DIR%app.py"
 set "TASK_NAME=FastAPIRecorderOnStartup"
 
-REM Check for Python installation
-where python >nul 2>nul
-if %errorlevel% == 0 (
-    set "PYTHON_PATH=python"
-) else (
-    where python3 >nul 2>nul
-    if %errorlevel% == 0 (
-        set "PYTHON_PATH=python3"
-    ) else (
-        echo ❌ Python not found. Please install Python.
-        pause
-        exit /b
-    )
+REM Find Python installation
+for /f "delims=" %%i in ('where python 2^>nul') do set "PYTHON_PATH=%%i"
+if not defined PYTHON_PATH (
+    for /f "delims=" %%i in ('where python3 2^>nul') do set "PYTHON_PATH=%%i"
+)
+if not defined PYTHON_PATH (
+    echo ❌ Python not found. Please install Python.
+    pause
+    exit /b
 )
 
-REM Get the full path to Python executable
-for /f "tokens=*" %%i in ('where %PYTHON_PATH%') do set "PYTHON_FULL_PATH=%%i"
+REM Create task to run on startup
+schtasks /create /f ^
+    /tn "%TASK_NAME%" ^
+    /sc onstart ^
+    /rl HIGHEST ^
+    /tr "\"%PYTHON_PATH%\" \"%SCRIPT_PATH%\"" ^
+    /ru SYSTEM ^
+    /d MON,TUE,WED,THU,FRI,SAT,SUN ^
+    /it
 
-REM Create the task with required parameters:
-REM - Working directory set to script location
-REM - Run with highest privileges
-REM - Run task as soon as possible after a scheduled start is missed
-REM - Don't require battery power
-schtasks /create /f /sc onstart /tn "%TASK_NAME%" /tr "\"%PYTHON_FULL_PATH%\" \"%APP_PATH%\"" /rl HIGHEST /st 00:00 /ru SYSTEM /np /delay 0000:01 /v1 /z
+REM Set working directory via registry (Task Scheduler doesn't allow directly setting working dir via schtasks)
+REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\%TASK_NAME%" /v WorkingDirectory /t REG_SZ /d "%SCRIPT_DIR%" /f >nul 2>&1
 
-REM Additional XML modifications for battery settings and missed start
-powershell -Command "$xml = [xml](schtasks /query /tn '%TASK_NAME%' /xml); $xml.Task.Settings.DisallowStartIfOnBatteries = 'false'; $xml.Task.Settings.RunOnlyIfIdle = 'false'; $xml.Task.Settings.StartWhenAvailable = 'true'; $xml.Save('%TEMP%\task.xml'); schtasks /create /f /tn '%TASK_NAME%' /xml '%TEMP%\task.xml'"
-
-echo ✅ Task Scheduler job '%TASK_NAME%' created to run on system startup!
-echo    - Working directory: %SCRIPT_DIR%
-echo    - Python path: %PYTHON_FULL_PATH%
-echo    - App path: %APP_PATH%
-echo    - Will run as soon as possible after missed start
-echo    - Will run regardless of battery status
+echo ✅ Task '%TASK_NAME%' created to run app.py at startup from '%SCRIPT_DIR%'
 pause
