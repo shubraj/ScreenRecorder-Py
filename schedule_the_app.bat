@@ -1,35 +1,34 @@
-@echo off
-REM Setup script to run FastAPI app at system startup (minimized)
+@echo on
+REM Setup script to run FastAPI app at system startup
 
+REM Get full script directory and app path
 set "SCRIPT_DIR=%~dp0"
-set "PY_FILE=%SCRIPT_DIR%app.py"
-set "VBS_FILE=%SCRIPT_DIR%run_minimized.vbs"
+set "SCRIPT_PATH=%SCRIPT_DIR%app.py"
 set "TASK_NAME=FastAPIRecorderOnStartup"
 
-REM Locate Python
-for /f "delims=" %%i in ('where python 2^>nul') do set "PYTHON_PATH=%%i"
-if not defined PYTHON_PATH (
-    for /f "delims=" %%i in ('where python3 2^>nul') do set "PYTHON_PATH=%%i"
+echo SCRIPT_DIR=%SCRIPT_DIR%
+echo SCRIPT_PATH=%SCRIPT_PATH%
+echo TASK_NAME=%TASK_NAME%
+
+REM Check for Python installation
+where python >nul 2>nul
+if %errorlevel% == 0 (
+    set "PYTHON_PATH=python"
+) else (
+    where python3 >nul 2>nul
+    if %errorlevel% == 0 (
+        set "PYTHON_PATH=python3"
+    ) else (
+        echo ❌ Python not found. Please install Python.
+        pause
+        exit /b
+    )
 )
-if not defined PYTHON_PATH (
-    echo ❌ Python not found. Please install Python.
-    pause
-    exit /b
-)
 
-REM Create VBScript to launch Python minimized
-> "%VBS_FILE%" echo Set WshShell = CreateObject("WScript.Shell")
->> "%VBS_FILE%" echo WshShell.Run Chr(34^) ^& "%PYTHON_PATH%" ^& Chr(34^) ^& " " ^& Chr(34^) ^& "%PY_FILE%" ^& Chr(34^), 7, False
+echo PYTHON_PATH=%PYTHON_PATH%
 
-REM Create Task Scheduler job
-schtasks /create /f ^
-    /tn "%TASK_NAME%" ^
-    /sc onstart ^
-    /rl HIGHEST ^
-    /tr "\"wscript.exe\" \"%VBS_FILE%\"" ^
-    /ru SYSTEM ^
-    /np ^
-    /it
+REM Create the task with absolute app.py path
+schtasks /create /f /sc onstart /tn "%TASK_NAME%" /tr "\"%PYTHON_PATH%\" \"%SCRIPT_PATH%\"" /rl HIGHEST
 
-echo ✅ Task '%TASK_NAME%' created to run minimized on system startup!
+echo ✅ Task Scheduler job '%TASK_NAME%' created to run on system startup!
 pause
