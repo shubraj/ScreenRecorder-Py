@@ -1,12 +1,12 @@
 @echo off
-REM Setup script to run FastAPI app at system startup
+REM Setup script to run FastAPI app at system startup (minimized)
 
-REM Get full script directory and app path
 set "SCRIPT_DIR=%~dp0"
-set "SCRIPT_PATH=%SCRIPT_DIR%app.py"
+set "PY_FILE=%SCRIPT_DIR%app.py"
+set "VBS_FILE=%SCRIPT_DIR%run_minimized.vbs"
 set "TASK_NAME=FastAPIRecorderOnStartup"
 
-REM Find Python installation
+REM Locate Python
 for /f "delims=" %%i in ('where python 2^>nul') do set "PYTHON_PATH=%%i"
 if not defined PYTHON_PATH (
     for /f "delims=" %%i in ('where python3 2^>nul') do set "PYTHON_PATH=%%i"
@@ -17,18 +17,19 @@ if not defined PYTHON_PATH (
     exit /b
 )
 
-REM Create task to run on startup
+REM Create VBScript to launch Python minimized
+> "%VBS_FILE%" echo Set WshShell = CreateObject("WScript.Shell")
+>> "%VBS_FILE%" echo WshShell.Run Chr(34^) ^& "%PYTHON_PATH%" ^& Chr(34^) ^& " " ^& Chr(34^) ^& "%PY_FILE%" ^& Chr(34^), 7, False
+
+REM Create Task Scheduler job
 schtasks /create /f ^
     /tn "%TASK_NAME%" ^
     /sc onstart ^
     /rl HIGHEST ^
-    /tr "\"%PYTHON_PATH%\" \"%SCRIPT_PATH%\"" ^
+    /tr "\"wscript.exe\" \"%VBS_FILE%\"" ^
     /ru SYSTEM ^
-    /d MON,TUE,WED,THU,FRI,SAT,SUN ^
+    /np ^
     /it
 
-REM Set working directory via registry (Task Scheduler doesn't allow directly setting working dir via schtasks)
-REG ADD "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Schedule\TaskCache\Tree\%TASK_NAME%" /v WorkingDirectory /t REG_SZ /d "%SCRIPT_DIR%" /f >nul 2>&1
-
-echo ✅ Task '%TASK_NAME%' created to run app.py at startup from '%SCRIPT_DIR%'
+echo ✅ Task '%TASK_NAME%' created to run minimized on system startup!
 pause
