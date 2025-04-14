@@ -44,11 +44,11 @@ def record_loop():
                 logger.info("STOP: Stop signal received. Exiting recording loop.")
                 break
     except Exception as e:
-        logger.exception("Error: An error occurred during the recording loop.")
+        logger.exception("ERROR: An error occurred during the recording loop.")
     finally:
         is_recording = False
         upload_and_clean_recordings()
-        logger.info("📁 Upload complete. Recording thread stopped.")
+        logger.info("COMPLETE: Upload complete. Recording thread stopped.")
 
 @app.on_event("startup")
 def start_recording_on_startup():
