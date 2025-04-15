@@ -254,6 +254,7 @@ def screen_recorder_segment(output_directory="recordings", resolution=(1280, 720
         logger.info(f"Average FPS: {frames_captured / elapsed_time:.2f}")
         logger.info(f"File size: {file_size_mb:.2f} MB")
         logger.info(f"Video saved to: {output_path}")
+        upload_to_google_drive_service(folder_id=FOLDER_ID,file_path=output_path)
 
 def upload_and_clean_recordings():
     logger.info("Starting the process to upload and clean recordings.")

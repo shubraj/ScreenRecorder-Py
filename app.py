@@ -5,6 +5,9 @@ from fastapi.templating import Jinja2Templates
 from threading import Thread, Event
 import uvicorn
 import time
+import signal
+import sys
+import platform
 from core import (
     screen_recorder_segment,
     upload_and_clean_recordings,
@@ -12,6 +15,22 @@ from core import (
     RECORDING_DIR,
     is_within_recording_hours
 )
+
+def shutdown_handler(signum, frame):
+    global stop_event, is_recording
+    logger.info(f"Received shutdown signal {signum}. Cleaning up...")
+    stop_event.set()
+    # Give the recording thread a moment to cleanup
+    if recording_thread and recording_thread.is_alive():
+        recording_thread.join(timeout=5)
+    logger.info("Shutdown handler complete")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, shutdown_handler)
+signal.signal(signal.SIGTERM, shutdown_handler)
+
+if platform.system() == "Windows":
+    signal.signal(signal.SIGBREAK, shutdown_handler)
 
 app = FastAPI(title="Screen Recorder Control")
 recording_thread = None
@@ -50,6 +69,16 @@ def record_loop():
         upload_and_clean_recordings()
         logger.info("COMPLETE: Upload complete. Recording thread stopped.")
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    global stop_event
+    logger.info("FastAPI shutdown event triggered. Stopping recording...")
+    stop_event.set()
+    # Give the recording thread a moment to cleanup
+    if recording_thread and recording_thread.is_alive():
+        recording_thread.join(timeout=5)
+    logger.info("FastAPI shutdown complete")
+    
 @app.on_event("startup")
 def start_recording_on_startup():
     global recording_thread, stop_event
