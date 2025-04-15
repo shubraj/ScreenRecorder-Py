@@ -23,7 +23,7 @@ def shutdown_handler(signum, frame):
 
     if recording_thread and recording_thread.is_alive():
         logger.info("Waiting for recording thread to finish and save...")
-        recording_thread.join(timeout=30)  # Give it enough time
+        recording_thread.join(timeout=5)
         if recording_thread.is_alive():
             logger.warning("Recording thread didn't finish in time!")
 
@@ -35,16 +35,21 @@ signal.signal(signal.SIGTERM, shutdown_handler)
 
 if platform.system() == "Windows":
     signal.signal(signal.SIGBREAK, shutdown_handler)
-    import win32api
-    import win32con
-
+    try:
+        import win32api
+        import win32con
+    except ImportError:
+        print("❌ pywin32 is not installed. Please run:")
+        print("   pip install pywin32")
+        sys.exit(1)
+        
     def windows_shutdown_handler(event_type):
         if event_type in (win32con.CTRL_LOGOFF_EVENT, win32con.CTRL_SHUTDOWN_EVENT, win32con.CTRL_CLOSE_EVENT):
             logger.info("⚠️ Windows shutdown/logoff detected. Attempting graceful shutdown...")
             stop_event.set()
             if recording_thread and recording_thread.is_alive():
                 logger.info("Waiting for recording thread to save and exit...")
-                recording_thread.join(timeout=30)
+                recording_thread.join(timeout=5)
             logger.info("✅ Graceful shutdown complete.")
             return True  # Return True to indicate the event was handled
         return False
@@ -73,11 +78,11 @@ def record_loop():
                 logger.info("SUCCESS: Within allowed time. Starting a recording segment.")
                 screen_recorder_segment(RECORDING_DIR, stop_event=stop_event)
             else:
-                logger.info("⏳ Outside recording hours. Will check again in 60 seconds.")
+                logger.info("INFO: Outside recording hours. Will check again in 60 seconds.")
                 time.sleep(60)
                 continue
             if not is_within_recording_hours():
-                logger.info("🕘 Recording hours ended. Will stop until next allowed time.")
+                logger.info("INFO: Recording hours ended. Will stop until next allowed time.")
                 break
             if stop_event.is_set():
                 logger.info("STOP: Stop signal received. Exiting recording loop.")
@@ -97,7 +102,7 @@ async def shutdown_event():
 
     if recording_thread and recording_thread.is_alive():
         logger.info("Waiting for recording thread to finish and save...")
-        recording_thread.join(timeout=30)
+        recording_thread.join(timeout=5)
 
     logger.info("FastAPI shutdown complete")
     
