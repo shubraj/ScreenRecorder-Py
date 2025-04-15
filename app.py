@@ -17,12 +17,16 @@ from core import (
 )
 
 def shutdown_handler(signum, frame):
-    global stop_event, is_recording
+    global stop_event, is_recording, recording_thread
     logger.info(f"Received shutdown signal {signum}. Cleaning up...")
     stop_event.set()
-    # Give the recording thread a moment to cleanup
+
     if recording_thread and recording_thread.is_alive():
-        recording_thread.join(timeout=5)
+        logger.info("Waiting for recording thread to finish and save...")
+        recording_thread.join(timeout=30)  # Give it enough time
+        if recording_thread.is_alive():
+            logger.warning("Recording thread didn't finish in time!")
+
     logger.info("Shutdown handler complete")
     sys.exit(0)
 
@@ -31,6 +35,22 @@ signal.signal(signal.SIGTERM, shutdown_handler)
 
 if platform.system() == "Windows":
     signal.signal(signal.SIGBREAK, shutdown_handler)
+    import win32api
+    import win32con
+
+    def windows_shutdown_handler(event_type):
+        if event_type in (win32con.CTRL_LOGOFF_EVENT, win32con.CTRL_SHUTDOWN_EVENT, win32con.CTRL_CLOSE_EVENT):
+            logger.info("⚠️ Windows shutdown/logoff detected. Attempting graceful shutdown...")
+            stop_event.set()
+            if recording_thread and recording_thread.is_alive():
+                logger.info("Waiting for recording thread to save and exit...")
+                recording_thread.join(timeout=30)
+            logger.info("✅ Graceful shutdown complete.")
+            return True  # Return True to indicate the event was handled
+        return False
+
+    # Register handler
+    win32api.SetConsoleCtrlHandler(windows_shutdown_handler, True)
 
 app = FastAPI(title="Screen Recorder Control")
 recording_thread = None
@@ -74,9 +94,11 @@ async def shutdown_event():
     global stop_event
     logger.info("FastAPI shutdown event triggered. Stopping recording...")
     stop_event.set()
-    # Give the recording thread a moment to cleanup
+
     if recording_thread and recording_thread.is_alive():
-        recording_thread.join(timeout=5)
+        logger.info("Waiting for recording thread to finish and save...")
+        recording_thread.join(timeout=30)
+
     logger.info("FastAPI shutdown complete")
     
 @app.on_event("startup")
