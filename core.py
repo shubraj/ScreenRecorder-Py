@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-import pyautogui
+import mss
 import time
 import os
 import logging
@@ -15,6 +15,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from PIL import Image
 
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env", override=True)
@@ -215,28 +216,31 @@ def screen_recorder_segment(output_directory="recordings", resolution=(1280, 720
     frames_captured = 0
 
     try:
-        while time.time() < end_time:
-            now = datetime.now().time()
-            if now >= datetime.strptime(recording_end_time, "%I%p").time():
-                logger.info("It's past 9:00 PM. Ending current recording segment early.")
-                break
+        with mss.mss() as sct:
+            monitor_combined = sct.monitors[0]
+            while time.time() < end_time:
+                now = datetime.now().time()
+                if now >= datetime.strptime(recording_end_time, "%I%p").time():
+                    logger.info("It's past 9:00 PM. Ending current recording segment early.")
+                    break
 
-            if stop_event and stop_event.is_set():
-                logger.info("Stop event triggered. Ending recording early.")
-                break
+                if stop_event and stop_event.is_set():
+                    logger.info("Stop event triggered. Ending recording early.")
+                    break
 
-            img = pyautogui.screenshot()
-            frame = np.array(img)
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frame = cv2.resize(frame, resolution)
+                screenshot = sct.grab(monitor_combined)
+                img = Image.frombytes("RGB", screenshot.size, screenshot.rgb)
+                frame = np.array(img)
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame = cv2.resize(frame, resolution)
 
-            encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), compression_quality]
-            _, buffer = cv2.imencode('.jpg', frame, encode_param)
-            frame = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+                encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), compression_quality]
+                _, buffer = cv2.imencode('.jpg', frame, encode_param)
+                frame = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
 
-            out.write(frame)
-            frames_captured += 1
-            time.sleep(1 / fps)
+                out.write(frame)
+                frames_captured += 1
+                time.sleep(1 / fps)
 
     except KeyboardInterrupt:
         logger.warning("Recording interrupted by user")
